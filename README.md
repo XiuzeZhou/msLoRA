@@ -13,7 +13,19 @@ msLoRA is an efficient fine-tuning strategy for Multimodal Large Language Models
 
 ## 📂 Project Structure
 
-FileDescriptionmodule.pyCore Architecture: Implementation of MyLoraLayer and the msLoRA wrapper.main.pyTraining Pipeline: Entry point for training across tasks (MSR-VTT, ScienceQA, etc.).analysis.pyDiagnostic Tools: Scripts for SVD spectral analysis and gradient orthogonality verification.utils.pyData Engine: Multimodal processors (CLIP, Wav2Vec2) and task-specific loaders.train.shAutomation: Bash script for streamlined experiment execution.
+Organize the data as follows:
+```
+├── datasets/
+|   ├── MSR-VTT/
+│   ├── MVSA_Single/
+│   ├── ScienceQA/
+│   └── Twitter17/
+├── llm/
+|   ├── clip-vit-base-patch32/
+│   ├── Qwen2.5-7B/
+│   ├── llama2-7B/
+│   └── wav2vec2-base-960h/
+```
 
 ## 🛠️ Installation
 
