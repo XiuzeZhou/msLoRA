@@ -6,7 +6,10 @@ msLoRA is an efficient fine-tuning strategy for Multimodal Large Language Models
 
 ## 🚀 Core Features
 
-Modality-Specific Decoupling: Separate low-rank matrices for textual, visual, and auditory updates to eliminate gradient interference.Asymmetric Rank Allocation: Supports independent rank scaling (e.g., higher ranks for high-entropy visual features) to mitigate textual dominance.Cumulative Information Span: Theoretically and empirically proven to capture a broader functional subspace by decentralizing spectral energy.Halved Optimal Rank: Matches or exceeds standard LoRA performance using only ~50% of the rank budget.
+- **Modality-Specific Decoupling**: Separate low-rank matrices for textual, visual, and auditory updates to eliminate gradient interference.
+- **Asymmetric Rank Allocation**: Supports independent rank scaling (e.g., higher ranks for high-entropy visual features) to mitigate textual dominance.
+- **Cumulative Information Span**: Theoretically and empirically proven to capture a broader functional subspace by decentralizing spectral energy.
+- **Halved Optimal Rank**: Matches or exceeds standard LoRA performance using only ~50% of the rank budget.
 
 ## 📂 Project Structure
 
@@ -26,17 +29,30 @@ pip install -r requirements.txt
 
 ## 📖 Usage
 
-1. Quick Start (Training)Use the provided script to start training on MSR-VTT using a Qwen2.5-7B backbone:Bashbash train.sh
-2. Manual ConfigurationYou can customize the rank and scaling factors via command-line arguments:Bashpython main.py \
-    -task msrvtt \
-    -llm_model ./path/to/llm \
-    -clip_model ./path/to/clip \
-    -r 16 \
-    -multimodal_scaling 4 \
-    -epochs 2 \
-    -batch_size 32
-3. SVD & Gradient AnalysisTo verify the modality independence and spectral distribution:Bashpython analysis.py --model_path ./path/to/checkpoint
+### 1. Download Datasets
+- **MVSA_Single**: [xwycyj/MVSA-Single](https://huggingface.co/xwycyj/MVSA-Single)
+- **MSR-VTT**: [VLM2Vec/MSR-VTT](https://huggingface.co/VLM2Vec/MSR-VTT)
+### 2. Pre-trained Models
+
+1). Download the pretrained models (Swin, BERT, Wav2Vec) Hugging Face
+
+- **CLIP**: [openai/clip-vit-base-patch32](https://huggingface.co/openai/clip-vit-base-patch32)
+- **Wav2Vec**: [facebook/wav2vec2-base-960h](https://huggingface.co/facebook/wav2vec2-base-960h)
+- **Qwen2.5-7B**: [Qwen/Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct)
+
+### 3. Quick Start (Training)
+```bash
+./shell/train.sh
+```
+### 4. SVD & Gradient Analysis
+   To verify the modality independence and spectral distribution:
+```
+analysis.ipynb
+```
 
 ## 📝 Citation
 
 If you find this work useful in your research, please consider citing:
+```
+
+```
