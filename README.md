@@ -1,4 +1,4 @@
-# msLoRA: Modality-Specific Adaptation for Multimodal Large Language Models
+# Beyond the Efficiency Paradox: Unlocking Multimodal Subspaces via Cumulative Information Span
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange)](LICENSE)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red)](https://pytorch.org/)
 
@@ -66,5 +66,10 @@ analysis.ipynb
 
 If you find this work useful in your research, please consider citing:
 ```
-
+@inproceedings{zhou2026beyond,
+  title={Beyond the Efficiency Paradox: Unlocking Multimodal Subspaces via Cumulative Information Span},
+  author={Zhou, Xiuze and Chu, Xiaowen and Hu, Xuming},
+  booktitle={Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing},
+  year={2026}
+}
 ```
