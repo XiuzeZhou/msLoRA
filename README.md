@@ -42,8 +42,9 @@ pip install -r requirements.txt
 ## 📖 Usage
 
 ### 1. Download Datasets
-- **MVSA_Single**: [xwycyj/MVSA-Single](https://huggingface.co/xwycyj/MVSA-Single)
-- **MSR-VTT**: [VLM2Vec/MSR-VTT](https://huggingface.co/VLM2Vec/MSR-VTT)
+
+**MVSA_Single**, **MSR-VTT**, **Twitter-17**, and **MSR-VTT**: https://huggingface.co/datasets/Xiuze/multimodal_datasets/
+
 ### 2. Pre-trained Models
 
 1). Download the pretrained models (Swin, BERT, Wav2Vec) Hugging Face
