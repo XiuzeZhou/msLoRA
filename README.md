@@ -2,13 +2,13 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange)](LICENSE)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red)](https://pytorch.org/)
 
-msLoRA is an efficient fine-tuning strategy for Multimodal Large Language Models (MLLMs). It introduces **Modality-Specific Adapters** that decouple the adaptation processes of text, image, and audio. This architecture addresses the "modality interference" problem in standard LoRA, enabling better cross-modal alignment with a significantly reduced parameter budget.
+msLoRA is an efficient fine-tuning strategy for Multimodal Large Language Models (MLLMs). It introduces **Modality-Specific Adapters** that decouple the adaptation processes of text, image, and audio. This architecture addresses the "modality interference" problem in standard LoRA, enabling better cross-modal alignment.
 
 ## 🚀 Core Features
 
 - **Modality-Specific Decoupling**: Separate low-rank matrices for textual, visual, and auditory updates to eliminate gradient interference.
 - **Asymmetric Rank Allocation**: Supports independent rank scaling (e.g., higher ranks for high-entropy visual features) to mitigate textual dominance.
-- **Cumulative Information Span**: Theoretically and empirically proven to capture a broader functional subspace by decentralizing spectral energy.
+- **Cumulative Information Span**: Theoretically and empirically support a broader functional subspace by decentralizing spectral energy.
 
 ## 📂 Project Structure
 
@@ -19,10 +19,14 @@ Organize the data as follows:
 │   ├── MVSA_Single/
 │   ├── ScienceQA/
 │   └── Twitter17/
-├── llm/
+├── llms/
 |   ├── clip-vit-base-patch32/
+│   ├── Qwen2.5-3B/
 │   ├── Qwen2.5-7B/
+│   ├── Qwen2.5-14B/
 │   ├── llama2-7B/
+│   ├── llama2-13B/
+│   ├── mistral-7B/
 │   └── wav2vec2-base-960h/
 ```
 
@@ -30,7 +34,7 @@ Organize the data as follows:
 
 Prerequisites
 - Python 3.10+
-- CUDA-enabled GPU (e.g., RTX 3090, RTX 6000 Ada)
+- CUDA-enabled GPU (e.g., RTX 5090, RTX Pro 6000)
 
 ```bash
 git clone https://github.com
@@ -50,7 +54,9 @@ pip install -r requirements.txt
 
 - **CLIP**: [openai/clip-vit-base-patch32](https://huggingface.co/openai/clip-vit-base-patch32)
 - **Wav2Vec**: [facebook/wav2vec2-base-960h](https://huggingface.co/facebook/wav2vec2-base-960h)
+- **Qwen2.5-3B**: [Qwen/Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct)
 - **Qwen2.5-7B**: [Qwen/Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct)
+- **Qwen2.5-14B**: [Qwen/Qwen2.5-14B-Instruct](https://huggingface.co/Qwen/Qwen2.5-14B-Instruct)
 
 ### 3. Quick Start (Training)
 ```bash
@@ -59,7 +65,7 @@ pip install -r requirements.txt
 ### 4. SVD & Gradient Analysis
    To verify the modality independence and spectral distribution:
 ```
-analysis.ipynb
+python analysis.py
 ```
 
 ## 📝 Citation
