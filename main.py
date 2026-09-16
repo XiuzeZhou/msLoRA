@@ -4,10 +4,9 @@ import random
 import numpy as np
 from torch.optim import AdamW
 from transformers import AutoTokenizer, get_scheduler
-import string
 import os
-from utils import DataLoader, Batchify, now_time, MSRVTT_CATEGORIES
-from module import msLoRA_Concat, msLoRA
+from utils import DataLoader, Batchify, now_time
+from module import LoRA_Concat, msLoRA
 from sklearn.metrics import classification_report, accuracy_score
 from pycocoevalcap.cider.cider import Cider
 
@@ -21,12 +20,12 @@ parser.add_argument('-epochs', type=int, default=10)
 parser.add_argument('-batch_size', type=int, default=16)
 parser.add_argument('-r', type=int, default=16)
 parser.add_argument('-lora_modules', type=int, default=7)
-parser.add_argument('-multimodal_scaling', type=int, default=4)
 parser.add_argument('-clip_norm', '--clip_norm', type=float, default=1.0, help='gradient clipping')
 parser.add_argument('-noise_std', type=float, default=0.0, help='Standard deviation of Gaussian noise for images')
 parser.add_argument('-gpu', type=str, default='0,1', help='GPU ID to use')
-parser.add_argument('-lora_name', type=str, default='LoRA', help='LoRA name')
-parser.add_argument('-save_path', type=str, default='../autodl-tmp/', help='Path for trained models.')
+parser.add_argument('-lora_name', type=str, default='msLoRA', choices=['msLoRA', 'LoRA'])
+parser.add_argument('-load_in_8bit', action='store_true', help='Load frozen LLM backbone in 8-bit')
+parser.add_argument('-save_path', type=str, default='./checkpoints/', help='Path for trained models.')
 parser.add_argument('-seed', type=int, default=42)
 args = parser.parse_args()
 
@@ -70,18 +69,32 @@ def evaluate(data_loader):
     with torch.no_grad():
         for _ in range(data_loader.total_step):
             img_ids, aud_ids, input_ids, mask, _, labels = data_loader.next_batch(mode='eval')
-            model.set_multimodal_features(img_ids, aud_ids)
             
             max_new_tokens = 30 if args.task in ['flickr', 'msrvtt'] else 5
-            gen_ids = model.model.generate(
-                input_ids=input_ids.to(device),
-                attention_mask=mask.to(device),
-                max_new_tokens=max_new_tokens, 
-                do_sample=False,
-                pad_token_id=tokenizer.pad_token_id
-            )
+            if args.lora_name == "msLoRA":
+                model.set_multimodal_features(img_ids, aud_ids)
+                gen_ids = model.model.generate(
+                    input_ids=input_ids.to(device),
+                    attention_mask=mask.to(device),
+                    max_new_tokens=max_new_tokens, 
+                    do_sample=False,
+                    pad_token_id=tokenizer.pad_token_id
+                )
+                
+                preds = tokenizer.batch_decode(gen_ids[:, input_ids.size(1):], skip_special_tokens=True)
+            else:
+                gen_ids = model.generate(
+                    input_ids=input_ids.to(device),
+                    attention_mask=mask.to(device),
+                    img_ids=img_ids,
+                    aud_ids=aud_ids,
+                    max_new_tokens=max_new_tokens, 
+                    do_sample=False,
+                    pad_token_id=tokenizer.pad_token_id
+                )
+                
+                preds = tokenizer.batch_decode(gen_ids, skip_special_tokens=True)
             
-            preds = tokenizer.batch_decode(gen_ids[:, input_ids.size(1):], skip_special_tokens=True)
             for p, l in zip(preds, labels):
                 p_lower = p.lower().strip()
                 pred_label = -1
@@ -90,7 +103,7 @@ def evaluate(data_loader):
                     all_preds.append(p_lower)
                     all_labels.append(l) # l is string for flickr and msrvtt
                     continue
-                
+
                 if args.task == 'hateful':
                     # Hateful Memes: yes -> 1, no -> 0
                     if p_lower.startswith('yes'): pred_label = 1
@@ -126,7 +139,6 @@ def evaluate(data_loader):
         score = accuracy_score(all_labels, all_preds)
     return score, all_preds, all_labels
 
-# Initialization
 model_type = "qwen" if "qwen" in args.llm_model.lower() else "llama"
 print(f"{now_time()} Detected Model Type: {model_type}")
 
@@ -139,15 +151,13 @@ if model_type == "qwen":
         else:
             tokenizer.pad_token = tokenizer.eos_token
 else:
-    # Llama 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-# Unified setting: must be left-padded during generation
+# Fill from the left side when generating
 tokenizer.padding_side = 'left'
 
-# 2. Dynamically obtain the hidden layer dimension (hidden_size) of the model
-#  Qwen2.5-3B: 2048, Qwen2.5-7B: 3584, Llama2-7B: 4096
+# Get hidden_size: Qwen2.5-3B: 2048，7B: 3584, Llama2-7B: 4096
 from transformers import AutoConfig
 config = AutoConfig.from_pretrained(args.llm_model, trust_remote_code=True)
 llm_hidden_size = getattr(config, "hidden_size", getattr(config, "d_model", None))
@@ -157,18 +167,28 @@ corpus = DataLoader(data_path, tokenizer, args.clip_model, device, wav2vec_path=
 train_loader = Batchify(corpus.train, tokenizer, args.batch_size, task=args.task, shuffle=True)
 valid_loader = Batchify(corpus.valid, tokenizer, args.batch_size, task=args.task)
 
-# 3. Initialize msLoRA
-model = msLoRA(
-    args.llm_model, 
-    args.r, 
-    args.lora_modules, 
-    corpus.image_embeddings,
-    audio_embeddings=corpus.audio_embeddings,
-    multimodal_scaling=args.multimodal_scaling
-    # hidden_size=llm_hidden_size
-)
+# 3. build model
+if args.lora_name == "msLoRA":
+    model = msLoRA(
+        args.llm_model, 
+        args.r, 
+        args.lora_modules, 
+        corpus.image_embeddings,
+        audio_embeddings=corpus.audio_embeddings,
+        load_in_8bit=args.load_in_8bit
+        # hidden_size=llm_hidden_size
+    )
+else:
+    model = LoRA_Concat(
+        args.llm_model, 
+        args.r, 
+        args.lora_modules, 
+        corpus.image_embeddings,
+        audio_embeddings=corpus.audio_embeddings,
+        load_in_8bit=args.load_in_8bit,
+        lora_name=args.lora_name
+    )
 
-#model = msLoRA_Concat(args.llm_model, args.r, args.lora_modules, corpus.image_embeddings)
 optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
 
 num_training_steps = args.epochs * train_loader.total_step
@@ -177,10 +197,11 @@ lr_scheduler = get_scheduler(
 )
 
 # --- Early Stopping Initialization ---
-best_acc = 0.0
+best_acc = -float("inf")
 patience = 4
 patience_counter = 0
-best_model_path = args.save_path + 'best_model_{args.task}.pt'
+os.makedirs(args.save_path, exist_ok=True)
+best_model_path = os.path.join(args.save_path, 'model.pt')
 
 # Training
 print(f"{now_time()} Starting training for task: {args.task}")
@@ -188,9 +209,10 @@ for epoch in range(args.epochs):
     model.train()
     for step in range(train_loader.total_step):
         img_ids, aud_ids, input_ids, mask, t_lens, _ = train_loader.next_batch(mode='train')
-        outputs = model(input_ids.to(device), mask.to(device), img_ids, aud_ids, target_lens=t_lens)
-        
-        loss = outputs.loss
+
+        with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+            outputs = model(input_ids.to(device), mask.to(device), img_ids, aud_ids, target_lens=t_lens)
+            loss = outputs.loss
         loss.backward()
         
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
@@ -210,7 +232,11 @@ for epoch in range(args.epochs):
         best_acc = acc
         patience_counter = 0
         print(f"{now_time()} New best validation accuracy: {best_acc:.4f}. Saving model...")
-        torch.save(model.state_dict(), best_model_path)
+        trainable_state_dict = {
+            k: v.detach().cpu() for k, v in model.named_parameters() if v.requires_grad
+        }
+        torch.save(trainable_state_dict, best_model_path)
+        # torch.save(model.state_dict(), best_model_path)
     else:
         patience_counter += 1
         print(f"{now_time()} No improvement. Patience: {patience_counter}/{patience}")
@@ -219,17 +245,20 @@ for epoch in range(args.epochs):
         print(f"{now_time()} Early stopping.")
         break
 
-# Testing
+# Test
 del optimizer
 del lr_scheduler
 torch.cuda.empty_cache()
 
 print(f"\n{now_time()}Loading best model from {best_model_path} for final evaluation...")
-model.load_state_dict(torch.load(best_model_path))
+
+state_dict = torch.load(best_model_path, map_location="cpu")
+model.load_state_dict(state_dict, strict=False)
+#model.load_state_dict(torch.load(best_model_path))
+
 test_loader = Batchify(corpus.test, tokenizer, args.batch_size, task=args.task)
 acc, preds, labels = evaluate(test_loader)
 
-# --- Set the Report parameters according to the task ---
 if args.task == 'hateful':
     t_names = ["non-hateful", "hateful"]
     target_ids = [0, 1]
