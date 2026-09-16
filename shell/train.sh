@@ -1,6 +1,6 @@
 echo $1
 TASK=twitter17
-LLM_MODEL=./llm/Qwen2.5-3B
+LLM_MODEL=./llm/Qwen2.5-7B
 CLIP_MODEL=./llm/clip-vit-base-patch32/
 OUT_LOG_DIR=./logs/
 SAVE_PATH=./checkpoints/
