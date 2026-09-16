@@ -22,6 +22,7 @@ def now_time():
 def extract_audio_robust(video_path, duration=20.0, sr=16000):
     temp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False).name
     try:
+        # Priority in using the system path of ffmpeg
         ffmpeg_cmd = shutil.which('ffmpeg')
         if not ffmpeg_cmd:
             try:
@@ -40,7 +41,7 @@ def extract_audio_robust(video_path, duration=20.0, sr=16000):
         y, sr_out = librosa.load(temp_wav, sr=sr)
         return y, sr_out
     except subprocess.CalledProcessError:
-        # Silent Video
+        # video without audios (Silent Video)
         return np.array([]), sr
     finally:
         if os.path.exists(temp_wav):
@@ -120,6 +121,7 @@ class DataLoader:
         rows = []
         for pid, prob in problems.items():
             if prob['image'] is not None:
+                # Constructing questions + Options
                 choices = prob['choices']
                 options = "\n".join([f"({chr(65+i)}) {c}" for i, c in enumerate(choices)])
                 full_text = f"Context: {prob['hint']}\nQuestion: {prob['question']}\nOptions:\n{options}"
@@ -163,11 +165,14 @@ class DataLoader:
                         text = str(row.iloc[3])       # #3 String (Sentence)
                         aspect = str(row.iloc[4])     # #3 String (Aspect)
                     else:
+                        # One less column in test.tsv (that is, five columns for four headers) 
+                        # causes the auto offset: the first column becomes the index
                         label = int(row.iloc[0])
                         img_id_raw = str(row.iloc[1]) # #1 ImageID
                         text = str(row.iloc[2])       # #2 String
                         aspect = str(row.iloc[3])     # #2 String
 
+                    # 1. Processing image names: GitHub code shows some ID with suffix, some without
                     if not img_id_raw.endswith('.jpg'):
                         img_id_full = img_id_raw + ".jpg"
                     else:
@@ -222,6 +227,8 @@ class DataLoader:
         with open(test_path, 'r') as f:
             test_data = json.load(f)
 
+        # To prevent data leakage, we must first split the training and validation sets by video_id, 
+        # not by expanded lines of text
         random.seed(1111)
         random.shuffle(train_val_data)
         n = len(train_val_data)
@@ -233,6 +240,7 @@ class DataLoader:
             for item in raw_data:
                 captions = item.get('caption', "")
                 
+                # 1. Training set: If a video has multiple texts, expansion increases the sample size for multiple lines
                 if split_name == 'train' and isinstance(captions, list):
                     for cap in captions:
                         new_item = item.copy()
@@ -240,10 +248,11 @@ class DataLoader:
                         new_item['split'] = split_name
                         new_item['video_path'] = os.path.join(video_dir, f"{item['video_id']}.mp4")
                         all_rows.append(new_item)
+                # 2. Validation and test sets: One video keeps only one reference text, aligned with the test logic
                 else:
                     new_item = item.copy()
                     if isinstance(captions, list) and len(captions) > 0:
-                        new_item['caption'] = str(captions[0]).strip()
+                        new_item['caption'] = str(captions[0]).strip() # By default, the first sentence is taken as the target
                     else:
                         new_item['caption'] = str(captions).strip()
                     new_item['split'] = split_name
@@ -457,7 +466,7 @@ class DataLoader:
                 
                 return {
                     'id': d['video_id'],
-                    'text': self.asr_texts.get(d['video_id'], d.get('asr', '')),
+                    'text': self.asr_texts.get(d['video_id'], d.get('asr', '')), # Use translated text first
                     'label': d.get('caption', ''),
                     'category_name': category_name
                 }
@@ -488,7 +497,7 @@ class DataLoader:
                 label = row['label']
             elif self.task == 'scienceqa':
                 text = row['text']
-                label = row['answer']
+                label = row['answer'] # The tag key name for ScienceQA is "answer".
             elif self.task == 'flickr':
                 text = row['text']
                 label = row['label']
@@ -505,6 +514,7 @@ class DataLoader:
 
             item = {'id': img_id, 'text': text, 'label': int(label) if self.task != 'flickr' else label}
 
+            # Official Protocol: twitter17
             if self.task == 'twitter17':
                 twitter_item = {'id': img_id, 'text': text, 'aspect': row['aspect'], 'label': int(label)}
                 if row['split_hint'] == 'train':
@@ -516,7 +526,7 @@ class DataLoader:
             else:
                 random_pool.append(item)
 
-        # Flickr 8k
+        # Flickr 8k: divided by images to prevent different captions of the same image from being leaked
         if self.task == 'flickr' and random_pool:
             from collections import defaultdict
             grouped = defaultdict(list)
@@ -535,7 +545,7 @@ class DataLoader:
             valid_data = [x for i in valid_ids for x in grouped[i]]
             test_data = [x for i in test_ids for x in grouped[i]]
 
-        # MVSA, Hateful, ScienceQA
+        # Random Protocol: MVSA, Hateful, ScienceQA
         elif self.task != 'twitter17' and random_pool:
             random.seed(1111)
             random.shuffle(random_pool)
@@ -603,6 +613,7 @@ class Batchify:
                 p = f"Instruction: Classify sentiment as positive, negative, or neutral.\nText: {d['text']}\nSentiment: "
                 label_word = self.id_to_label[d['label']]
 
+            # 2. Construct the training/inference sequence
             if mode == 'train':
                 full_text = p + label_word + self.tokenizer.eos_token
                 prompts.append(full_text)
