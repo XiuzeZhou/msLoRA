@@ -8,7 +8,7 @@ msLoRA is an efficient fine-tuning strategy for Multimodal Large Language Models
 
 - **Modality-Specific Decoupling**: Separate low-rank matrices for textual, visual, and auditory updates to eliminate gradient interference.
 - **Asymmetric Rank Allocation**: Supports independent rank scaling (e.g., higher ranks for high-entropy visual features) to mitigate textual dominance.
-- **Cumulative Information Span**: Theoretically and empirically support a broader functional subspace by decentralizing spectral energy.
+- **Cumulative Information Span**: Theoretically and empirically supports a broader functional subspace by decentralizing spectral energy.
 
 ## 📂 Project Structure
 
