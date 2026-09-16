@@ -20,7 +20,7 @@ OUT_LOG=${LoRA_NAME}_train.log
 echo "task: $TASK, r: $R"
 TRANSFORMERS_CACHE=./llm/ \
 HF_DATASETS_CACHE=./llm/ \
-CUDA_VISIBLE_DEVICES=0 D:/Anaconda3/envs/torch2.2/python -u ./main.py \
+CUDA_VISIBLE_DEVICES=0 python -u ./main.py \
     -task ${TASK} \
     -llm_model ${LLM_MODEL} \
     -clip_model ${CLIP_MODEL} \
