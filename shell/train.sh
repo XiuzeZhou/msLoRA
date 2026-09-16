@@ -1,30 +1,36 @@
 echo $1
-task=msrvtt
-llm_model=../autodl-fs/Qwen2.5-7B
-clip_model=./llm/clip-vit-base-patch32/
-out_log_dir=./logs/
-save_path=../autodl-tmp/
-seed=11
-r_val=4
-m_scaling=4
+TASK=twitter17
+LLM_MODEL=./llm/Qwen2.5-3B
+CLIP_MODEL=./llm/clip-vit-base-patch32/
+OUT_LOG_DIR=./logs/
+SAVE_PATH=./checkpoints/
 
-mkdir -p ${out_log_dir}${task}
+LR=2e-5
+EPOCHS=10
+BATCH_SIZE=16
+R=8
+LoRA_MODULES=7
+LoRA_NAME=msLoRA
+GPU=0
+SEED=110
 
-out_log=qwen7b_mslora_train.log
-echo "task: $task"
+mkdir -p ${OUT_LOG_DIR}${TASK}
+
+OUT_LOG=${LoRA_NAME}_train.log
+echo "task: $TASK, r: $R"
 TRANSFORMERS_CACHE=./llm/ \
 HF_DATASETS_CACHE=./llm/ \
-CUDA_VISIBLE_DEVICES=0 ../miniconda3/bin/python -u ./main.py \
-    -task ${task} \
-    -llm_model ${llm_model} \
-    -clip_model ${clip_model} \
-    -lr 2e-5 \
-    -epochs 2 \
-    -batch_size 32 \
-    -r ${r_val} \
-    -lora_modules 7 \
-    -multimodal_scaling ${m_scaling} \
-    -gpu 0 \
-    -save_path ${save_path} \
-    -seed $seed \
-    > ${out_log_dir}${task}/${out_log}
+CUDA_VISIBLE_DEVICES=0 D:/Anaconda3/envs/torch2.2/python -u ./main.py \
+    -task ${TASK} \
+    -llm_model ${LLM_MODEL} \
+    -clip_model ${CLIP_MODEL} \
+    -lr $LR \
+    -epochs $EPOCHS \
+    -batch_size $BATCH_SIZE \
+    -r $R \
+    -lora_modules $LoRA_MODULES \
+    -lora_name ${LoRA_NAME} \
+    -gpu ${GPU} \
+    -save_path ${SAVE_PATH} \
+    -seed $SEED \
+    > ${OUT_LOG_DIR}${TASK}/${OUT_LOG}
